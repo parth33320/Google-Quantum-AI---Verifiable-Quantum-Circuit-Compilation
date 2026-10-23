@@ -1,0 +1,2 @@
+*.kmb filter=lfs diff=lfs merge=lfs -text
+*.fcidump filter=lfs diff=lfs merge=lfs -text
