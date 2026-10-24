@@ -1,22 +1,15 @@
 """Slice 1 runner for invsqrt benchmark circuit verification."""
 
-import subprocess
 import sys
+sys.path.insert(0, '/kaggle/input/google-verifiable-quantum-circuit-compilation/kickmix')
+from kickmix import kickmix as km
+import subprocess
 import os
 
 def main():
     circuit_path = "/kaggle/input/google-verifiable-quantum-circuit-compilation/sample_submission/invsqrt.kmb"
     kickmix_path = "/kaggle/input/google-verifiable-quantum-circuit-compilation/kickmix/kickmix.so"
     verifier_script = "/kaggle/input/google-verifiable-quantum-circuit-compilation/verifiers/invsqrt/verify_submission_invsqrt.py"
-
-    # Ensure kickmix module can be imported if needed
-    kickmix_dir = os.path.dirname(kickmix_path)
-    if kickmix_dir not in sys.path:
-        sys.path.insert(0, kickmix_dir)
-
-    import sys
-    sys.path.insert(0, '/kaggle/input/google-verifiable-quantum-circuit-compilation/kickmix')
-    from kickmix import kickmix as km
 
     # Load circuit using kickmix
     circuit = km.Circuit.from_file(circuit_path, format="kmb")
