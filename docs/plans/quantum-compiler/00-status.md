@@ -1,10 +1,6 @@
-# Status: quantum-compiler
+# Status: Quantum Compiler Documentation
 
-- Gate 1 — Product: pending
-- Gate 2 — Architecture: pending
-- Gate 3 — Program Design: pending
-- Gate 4 — Slice plan: pending
+- Gate 1 — Product: APPROVED 2026-03-29
 
 ## Slices
-
-## Notes for a fresh session
+- [x] Documentation of verifiers and sample_submission .kmb files in docs/plans/quantum-compiler/01-product.md
