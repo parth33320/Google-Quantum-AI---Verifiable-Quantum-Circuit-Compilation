@@ -1,8 +1,12 @@
 """Slice 1 runner for invsqrt benchmark circuit verification."""
 
 import sys
-sys.path.insert(0, '/kaggle/input/competitions/google-verifiable-quantum-circuit-compilation/kickmix')
-from kickmix import kickmix as km
+import importlib.util
+
+kickmix_so = '/kaggle/input/competitions/google-verifiable-quantum-circuit-compilation/kickmix/kickmix.so'
+spec = importlib.util.spec_from_file_location('kickmix', kickmix_so)
+km = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(km)
 import subprocess
 import os
 
