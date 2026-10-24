@@ -14,7 +14,9 @@ def main():
     if kickmix_dir not in sys.path:
         sys.path.insert(0, kickmix_dir)
 
-    import kickmix as km
+    import sys
+    sys.path.insert(0, '/kaggle/input/google-verifiable-quantum-circuit-compilation/kickmix')
+    from kickmix import kickmix as km
 
     # Load circuit using kickmix
     circuit = km.Circuit.from_file(circuit_path, format="kmb")
