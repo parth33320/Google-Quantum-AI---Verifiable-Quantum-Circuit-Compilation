@@ -6,6 +6,6 @@
 - Gate 4 — Slice plan: pending
 
 ## Slices
-- [x] Documentation of verifiers and sample_submission .kmb files in docs/plans/quantum-compiler/01-product.md
-- [x] Architecture specification in docs/plans/quantum-compiler/02-architecture.md
-- [x] Program design specification in docs/plans/quantum-compiler/03-program-design.md
+- [ ] Slice 1: load invsqrt.kmb from /kaggle/input/google-verifiable-quantum-circuit-compilation/sample_submission/, run through kickmix.so, print pass or fail
+- [ ] Slice 2: add optimization loop for invsqrt only
+- [ ] Slice 3: extend optimizer to dqi and dfthcsos
