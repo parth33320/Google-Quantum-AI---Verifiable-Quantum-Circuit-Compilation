@@ -1,0 +1,129 @@
+name: Run Kaggle Notebook on PR
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  run-kaggle-notebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install kaggle
+
+      - name: Push, run, and wait for Kaggle notebook
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.JULES_KAGGLE_API_TOKEN }}
+        run: |
+          python - << 'EOF'
+          import os
+          import time
+          from kaggle.api.kaggle_api_extended import KaggleApi
+
+          kernel_slug = "parth33320/parth33320-goog-quantum-circuit-compiler"
+          work_dir = "nb_work"
+          output_dir = "nb_output"
+
+          os.makedirs(work_dir, exist_ok=True)
+          os.makedirs(output_dir, exist_ok=True)
+
+          api = KaggleApi()
+          api.authenticate()
+
+          print(f"Pulling kernel metadata for {kernel_slug}...")
+          api.kernels_pull(kernel_slug, path=work_dir, metadata=True)
+
+          print(f"Pushing and executing kernel {kernel_slug}...")
+          api.kernels_push(folder=work_dir)
+
+          print("Waiting for kernel execution to complete...")
+          final_status = "UNKNOWN"
+          failure_msg = ""
+          while True:
+              status_res = api.kernels_status(kernel_slug)
+              status = status_res.status
+              raw_str = status.name if hasattr(status, 'name') else str(status)
+              status_str = raw_str.upper() if raw_str else "UNKNOWN"
+              failure_msg = status_res.failure_message or ""
+              print(f"Current status: {status_str}")
+              if status_str in ["COMPLETE", "ERROR", "CANCEL_ACKNOWLEDGED", "CANCEL_REQUESTED"]:
+                  final_status = status_str
+                  break
+              time.sleep(15)
+
+          print("Retrieving kernel outputs...")
+          try:
+              api.kernels_output(kernel_slug, path=output_dir)
+          except Exception as e:
+              print(f"Error fetching output: {e}")
+
+          comment_parts = [
+              "### Kaggle Notebook Execution Results",
+              f"- **Notebook:** `{kernel_slug}`",
+              f"- **Status:** `{final_status}`"
+          ]
+
+          if failure_msg:
+              comment_parts.append(f"\n**Failure Message:**\n```\n{failure_msg}\n```")
+
+          log_file = os.path.join(output_dir, "parth33320-goog-quantum-circuit-compiler.log")
+          if os.path.exists(log_file):
+              with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                  log_content = f.read().strip()
+              if log_content:
+                  if len(log_content) > 50000:
+                      log_content = log_content[-50000:]
+                  comment_parts.append(f"\n<details><summary>Notebook Execution Log</summary>\n\n```\n{log_content}\n```\n</details>")
+
+          outfiles = [f for f in os.listdir(output_dir) if not f.endswith(".log")]
+          if outfiles:
+              comment_parts.append("\n**Generated Output Files:**")
+              for fname in outfiles:
+                  fpath = os.path.join(output_dir, fname)
+                  if os.path.isfile(fpath):
+                      comment_parts.append(f"- `{fname}` ({os.path.getsize(fpath)} bytes)")
+                      if fname.endswith((".txt", ".json", ".csv", ".out", ".md")):
+                          try:
+                              with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                                  content = f.read(5000)
+                              comment_parts.append(f"<details><summary>Preview {fname}</summary>\n\n```\n{content}\n```\n</details>")
+                          except Exception:
+                              pass
+
+          with open("pr_comment.md", "w", encoding="utf-8") as f:
+              f.write("\n".join(comment_parts))
+
+          if final_status != "COMPLETE":
+              raise RuntimeError(f"Kaggle kernel run failed with status: {final_status}")
+          EOF
+
+      - name: Post notebook output as comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('pr_comment.md')) {
+              const body = fs.readFileSync('pr_comment.md', 'utf8');
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
