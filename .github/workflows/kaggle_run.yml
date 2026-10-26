@@ -30,11 +30,13 @@ jobs:
           KAGGLE_API_TOKEN: ${{ secrets.JULES_KAGGLE_API_TOKEN }}
         run: |
           python - << 'EOF'
+          import json
           import os
+          import shutil
           import time
           from kaggle.api.kaggle_api_extended import KaggleApi
 
-          kernel_slug = "parth33320/parth33320-goog-quantum-circuit-compiler"
+          kernel_slug = "parth33320/dqi-test-runner"
           work_dir = "nb_work"
           output_dir = "nb_output"
 
@@ -46,6 +48,21 @@ jobs:
 
           print(f"Pulling kernel metadata for {kernel_slug}...")
           api.kernels_pull(kernel_slug, path=work_dir, metadata=True)
+
+          meta_file = os.path.join(work_dir, "kernel-metadata.json")
+          if os.path.exists(meta_file):
+              with open(meta_file, "r", encoding="utf-8") as f:
+                  meta = json.load(f)
+              code_file = meta.get("code_file", "dqi-test-runner.py")
+              if code_file.endswith(".ipynb"):
+                  meta["code_file"] = "dqi-test-runner.py"
+                  meta["kernel_type"] = "script"
+                  code_file = "dqi-test-runner.py"
+                  with open(meta_file, "w", encoding="utf-8") as f:
+                      json.dump(meta, f, indent=2)
+              target_code_path = os.path.join(work_dir, code_file)
+              print(f"Updating {target_code_path} with scripts/kaggle_test_runner.py...")
+              shutil.copy("scripts/kaggle_test_runner.py", target_code_path)
 
           print(f"Pushing and executing kernel {kernel_slug}...")
           api.kernels_push(folder=work_dir)
@@ -80,7 +97,12 @@ jobs:
           if failure_msg:
               comment_parts.append(f"\n**Failure Message:**\n```\n{failure_msg}\n```")
 
-          log_file = os.path.join(output_dir, "parth33320-goog-quantum-circuit-compiler.log")
+          log_file = os.path.join(output_dir, "dqi-test-runner.log")
+          if not os.path.exists(log_file):
+              log_files = [f for f in os.listdir(output_dir) if f.endswith(".log")]
+              if log_files:
+                  log_file = os.path.join(output_dir, log_files[0])
+
           if os.path.exists(log_file):
               with open(log_file, "r", encoding="utf-8", errors="replace") as f:
                   log_content = f.read().strip()
