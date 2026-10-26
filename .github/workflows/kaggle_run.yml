@@ -46,20 +46,43 @@ jobs:
           api = KaggleApi()
           api.authenticate()
 
-          print(f"Pulling kernel metadata for {kernel_slug}...")
-          api.kernels_pull(kernel_slug, path=work_dir, metadata=True)
-
           meta_file = os.path.join(work_dir, "kernel-metadata.json")
+
+          try:
+              print(f"Pulling kernel metadata for {kernel_slug}...")
+              api.kernels_pull(kernel_slug, path=work_dir, metadata=True)
+          except Exception as e:
+              print(f"Kernel pull failed ({e}). Creating default kernel metadata...")
+              default_meta = {
+                  "id": kernel_slug,
+                  "title": "DQI Test Runner",
+                  "code_file": "dqi-test-runner.py",
+                  "language": "python",
+                  "kernel_type": "script",
+                  "is_private": "true",
+                  "enable_gpu": "false",
+                  "enable_tpu": "false",
+                  "enable_internet": "true",
+                  "dataset_sources": [],
+                  "competition_sources": [],
+                  "kernel_sources": [],
+                  "model_sources": []
+              }
+              with open(meta_file, "w", encoding="utf-8") as f:
+                  json.dump(default_meta, f, indent=2)
+
           if os.path.exists(meta_file):
               with open(meta_file, "r", encoding="utf-8") as f:
                   meta = json.load(f)
+              meta["enable_internet"] = True
               code_file = meta.get("code_file", "dqi-test-runner.py")
               if code_file.endswith(".ipynb"):
                   meta["code_file"] = "dqi-test-runner.py"
                   meta["kernel_type"] = "script"
                   code_file = "dqi-test-runner.py"
-                  with open(meta_file, "w", encoding="utf-8") as f:
-                      json.dump(meta, f, indent=2)
+              with open(meta_file, "w", encoding="utf-8") as f:
+                  json.dump(meta, f, indent=2)
+
               target_code_path = os.path.join(work_dir, code_file)
               print(f"Updating {target_code_path} with scripts/kaggle_test_runner.py...")
               shutil.copy("scripts/kaggle_test_runner.py", target_code_path)
