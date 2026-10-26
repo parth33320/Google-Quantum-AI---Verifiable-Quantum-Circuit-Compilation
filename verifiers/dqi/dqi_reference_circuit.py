@@ -73,7 +73,8 @@ class ProosAndZalkaDecoder:
     def build_syndrome_decoding_mbuc(self, builder: km.CircuitBuilder, *,
                                      syndromes: Sequence[km.array],
                                      error_mbuc: Sequence[km.array],
-                                     n_iters: int) -> None:
+                                     n_iters: int,
+                                     compute_only: bool = False) -> None:
         """Appends the syndrome-decoding MBUC phase circuit to `builder`.
 
         Args:
@@ -83,6 +84,7 @@ class ProosAndZalkaDecoder:
             error_mbuc: Classical bit registers of width `field.degree`, one per
                 codeword position, holding X-basis measurement outcomes.
             n_iters: Number of synchronized EEA iterations (`default_n_iters(n)`).
+            compute_only: If True, stops after Chien search and Forney MBUC phase.
         """
         gf = self.field
         n = self.n_syndromes
@@ -125,10 +127,11 @@ class ProosAndZalkaDecoder:
             self._synchronized_eea(builder, *eea, n_iters=n_iters, is_adjoint=False)
         with builder.mark('chien_forney_mbuc'):
             self._chien_search_and_forney_mbuc(builder, reg_b, error_mbuc, n_b, n_B)
-        with builder.mark('reverse_eea'):
-            self._synchronized_eea(builder, *eea, n_iters=n_iters, is_adjoint=True)
-        with builder.mark('uncompute_initial_shift'):
-            self._initial_shift_loop(builder, reg_a, n_A, is_adjoint=True)
+        if not compute_only:
+            with builder.mark('reverse_eea'):
+                self._synchronized_eea(builder, *eea, n_iters=n_iters, is_adjoint=True)
+            with builder.mark('uncompute_initial_shift'):
+                self._initial_shift_loop(builder, reg_a, n_A, is_adjoint=True)
 
         builder.gf2_iadd(n + 1, target=n_B)
         builder.gf2_iadd(n, target=n_A)
@@ -615,13 +618,13 @@ def default_n_iters(n_syndromes: int) -> int:
     return 3 * (n_syndromes + 1) + 9
 
 
-def build_reference_circuit(m: int, n: int, degree: int) -> km.Circuit:
+def build_reference_circuit(m: int, n: int, degree: int, compute_only: bool = False) -> km.Circuit:
     """Builds the standalone reference Reed-Solomon MBUC decoder circuit."""
     builder = km.CircuitBuilder()
     syndromes = [builder.create_quantum_register(degree, name=f'S{i}') for i in range(n)]
     error_mbuc = [builder.create_classical_register(degree, name=f'E{j}') for j in range(m)]
     ProosAndZalkaDecoder(n, km.GF2Field(degree)).build_syndrome_decoding_mbuc(
-        builder, syndromes=syndromes, error_mbuc=error_mbuc, n_iters=default_n_iters(n))
+        builder, syndromes=syndromes, error_mbuc=error_mbuc, n_iters=default_n_iters(n), compute_only=compute_only)
     return builder.finish_circuit()
 
 
